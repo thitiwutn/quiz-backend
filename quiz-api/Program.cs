@@ -1,19 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using quiz_api.Entities;
+using quiz_api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddControllersWithViews();
 // Add services to the container.
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
 // Add Service DatabaseContext
 builder.Services.AddDbContext<DatabaseContext>();
 
-builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add services to the container.
+builder.Services.AddScoped<AccountService>();
 
 var app = builder.Build();
 
