@@ -53,7 +53,7 @@ namespace quiz_api.Entities.Migrations
 
                     b.HasKey("QuizId", "QuestionId", "ChoiceId");
 
-                    b.ToTable("Answers");
+                    b.ToTable("Answers", (string)null);
                 });
 
             modelBuilder.Entity("quiz_api.Entities.Models.Choice", b =>
@@ -87,7 +87,7 @@ namespace quiz_api.Entities.Migrations
 
                     b.HasIndex("QuestionId");
 
-                    b.ToTable("Choices");
+                    b.ToTable("Choices", (string)null);
 
                     b.HasData(
                         new
@@ -715,7 +715,7 @@ namespace quiz_api.Entities.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Groups");
+                    b.ToTable("Groups", (string)null);
 
                     b.HasData(
                         new
@@ -775,7 +775,7 @@ namespace quiz_api.Entities.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.ToTable("Questions");
+                    b.ToTable("Questions", (string)null);
 
                     b.HasData(
                         new
@@ -963,7 +963,7 @@ namespace quiz_api.Entities.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.ToTable("Quizzes");
+                    b.ToTable("Quizzes", (string)null);
                 });
 
             modelBuilder.Entity("quiz_api.Entities.Models.User", b =>
@@ -994,7 +994,7 @@ namespace quiz_api.Entities.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("quiz_api.Entities.Models.Answer", b =>
