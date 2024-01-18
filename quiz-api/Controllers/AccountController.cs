@@ -1,11 +1,15 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using quiz_api.Services;
+using quiz_api.Services.ActionFilters;
+using quiz_api.Services.Models;
 using quiz_api.Services.Models.Request;
 using quiz_api.Services.Models.Response;
 
 namespace quiz_api.Controllers;
 
 [ApiController]
+[LogTransaction]
 [Route("api/[controller]")]
 public class AccountController : Controller
 {
@@ -19,36 +23,54 @@ public class AccountController : Controller
     }
 
     [HttpGet("User")]
-    public async Task<ActionResult<UserResponse>> GetUser(string userName)
+    public ActionResult<ApiResponse<UserResponse>> GetUser(string userName)
     {
-        var user = await _accountService.GetUser(userName);
-        return Ok(user);
+        var response = new ApiResponse<UserResponse>();
+        try
+        {
+            var user = _accountService.GetUser(userName);
+            response.Data = user.Result;
+        }
+        catch (Exception ex) when (ex is ValidationException or AggregateException)
+        {
+            // Handle both ValidationException and AggregateException here
+            response.Success = false;
+            response.ErrorMessage = ex.InnerException!.Message;
+        }
+        catch (Exception ex)
+        {
+            // Log other unexpected exceptions
+            _logger.LogError(ex.Message);
+            response.Success = false;
+            response.ErrorMessage = "An unexpected error occurred.";
+        }
+
+        return Ok(response);
     }
 
     [HttpPost("User")]
-    public async Task<ActionResult<UserResponse>> CreateUser(CreateUser createUser)
+    public async Task<ActionResult<ApiResponse<UserResponse>>> CreateUser(CreateUser createUser)
     {
-        var user = await _accountService.CreateUser(createUser);
-        return Ok(user);
-    }
+        var response = new ApiResponse<UserResponse>();
+        try
+        {
+            var user = await _accountService.CreateUser(createUser);
+            response.Data = user;
+        }
+        catch (Exception ex) when (ex is ValidationException)
+        {
+            // Handle both ValidationException
+            response.Success = false;
+            response.ErrorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            // Log other unexpected exceptions
+            _logger.LogError(ex.Message);
+            response.Success = false;
+            response.ErrorMessage = "An unexpected error occurred.";
+        }
 
-    // [HttpPost("User"), HttpGet("User")]
-    // public async Task<ActionResult<UserResponse>> UserManage(CreateUser model)
-    // {
-    //     switch (HttpContext.Request.Method)
-    //     {
-    //         case "GET":
-    //         {
-    //             var user = await _accountService.GetUser(model.Name);
-    //             return Ok(user);
-    //         }
-    //         case "POST":
-    //         {
-    //             var user = await _accountService.CreateUser(model);
-    //             return Ok(user);
-    //         }
-    //         default:
-    //             return BadRequest();
-    //     }
-    // }
+        return Ok(response);
+    }
 }

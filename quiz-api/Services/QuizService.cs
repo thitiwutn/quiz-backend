@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using quiz_api.Entities;
 using quiz_api.Entities.Models;
@@ -16,224 +17,188 @@ public class QuizService
         _context = context;
     }
 
-    public async Task<QuizResponse> GetQuiz(string userName)
+    public async Task<QuizResponse> GetQuiz(int userId)
     {
-        try
+        var user = await _context.Users
+            .Include(i => i.Group)
+            .FirstOrDefaultAsync(a => a.Id == userId);
+        if (user == null)
+            throw new ValidationException("User not found.");
+        var questions = await GetQuestionAndChoice(user.GroupId);
+        var quiz = await _context.Quizzes
+            .Include(i => i.Answers)
+            .FirstOrDefaultAsync(a => a.UserId == user.Id);
+        if (quiz == null)
         {
-            var user = await _context.Users
-                .Include(i => i.Group)
-                .FirstOrDefaultAsync(a => a.Name == userName);
-            if (user == null)
-                throw new Exception("User not found.");
-            var questions = await GetQuestionAndChoice(user.GroupId);
-            var quiz = await _context.Quizzes
-                .Include(i => i.Answers)
-                .FirstOrDefaultAsync(a => a.UserId == user.Id);
-            if (quiz == null)
-            {
-                foreach (var question in questions)
-                {
-                }
-
-                return new QuizResponse
-                {
-                    QuizId = 0,
-                    Questions = questions
-                };
-            }
-
-            foreach (var answer in quiz.Answers)
-            {
-                var question = questions.FirstOrDefault(a => a.QuestionId == answer.QuestionId);
-                var choice = question?.Choices.FirstOrDefault(a => a.ChoiceId == answer.ChoiceId);
-                if (choice != null)
-                {
-                    choice.IsSelected = true;
-                }
-            }
-
             return new QuizResponse
             {
-                QuizId = quiz.Id,
+                QuizId = 0,
                 Questions = questions
             };
         }
-        catch (Exception e)
+
+        foreach (var answer in quiz.Answers)
         {
-            throw new Exception(e.Message);
+            var question = questions.FirstOrDefault(a => a.QuestionId == answer.QuestionId);
+            question!.SelectedChoiceId = answer.ChoiceId;
         }
+
+        return new QuizResponse
+        {
+            QuizId = quiz.Id,
+            IsComplete = quiz.IsCompleted,
+            Questions = questions
+        };
     }
 
-    public async Task<List<QuestionModel>> GetQuestionAndChoice(int groupId)
+    private async Task<List<QuestionModel>> GetQuestionAndChoice(int groupId)
     {
-        try
-        {
-            var questions = await _context.Questions
-                .Include(i => i.Choices)
-                .Where(a => a.GroupId == groupId)
-                .Select(s => new QuestionModel()
+        var questions = await _context.Questions
+            .Include(i => i.Choices)
+            .Where(a => a.GroupId == groupId)
+            .Select(s => new QuestionModel()
+            {
+                QuestionId = s.Id,
+                QuestionText = s.QuestionText,
+                Choices = s.Choices.Select(ss => new ChoiceModel()
                 {
-                    QuestionId = s.Id,
-                    QuestionText = s.QuestionText,
-                    Choices = s.Choices.Select(ss => new ChoiceModel()
-                    {
-                        ChoiceId = ss.Id,
-                        ChoiceText = ss.ChoiceText,
-                        IsSelected = false,
-                    }).ToList()
-                }).ToListAsync();
-            return questions;
-        }
-        catch (Exception e)
+                    ChoiceId = ss.Id,
+                    ChoiceText = ss.ChoiceText,
+                }).ToList()
+            }).ToListAsync();
+        questions.ForEach(a =>
         {
-            throw new Exception(e.Message);
-        }
+            for (var i = a.Choices.Count - 1; i >= 0; i--)
+            {
+                var j = new Random().Next(i + 1);
+
+                // shuffle choices
+                (a.Choices[i], a.Choices[j]) = (a.Choices[j], a.Choices[i]);
+            }
+        });
+        return questions;
     }
 
     public async Task<SaveQuizResponse> SaveQuiz(SaveQuizRequest request)
     {
-        try
+        var answers = request.Questions
+            .Where(w => w.SelectedChoiceId.HasValue)
+            .Select(s => new Answer
+            {
+                ChoiceId = s.SelectedChoiceId!.Value,
+                QuestionId = s.QuestionId,
+            }).ToList();
+        if (request.QuizId == 0)
         {
-            var answers = request.Questions
-                .SelectMany(a => a.Choices.Where(b => b.IsSelected)
-                    .Select(c =>
-                        new Answer
-                        {
-                            ChoiceId = c.ChoiceId,
-                            QuestionId = a.QuestionId,
-                        })
-                ).ToList();
-            if (request.QuizId == 0)
+            var quiz = new Quiz
             {
-                var quiz = new Quiz
-                {
-                    UserId = request.UserId,
-                    IsCompleted = false,
-                    Answers = answers,
-                    GroupId = request.GroupId,
-                };
-                _context.Quizzes.Add(quiz);
-                await _context.SaveChangesAsync();
-                return new SaveQuizResponse()
-                {
-                    Message = "Success",
-                    QuizId = quiz.Id
-                };
-            }
-            else
+                UserId = request.UserId,
+                IsCompleted = false,
+                Answers = answers,
+                GroupId = request.GroupId,
+            };
+            _context.Quizzes.Add(quiz);
+            await _context.SaveChangesAsync();
+            return new SaveQuizResponse()
             {
-                var quiz = _context.Quizzes.FirstOrDefault(a => a.Id == request.QuizId);
-                if (quiz == null)
-                    throw new Exception("Quiz not found.");
-                quiz.IsCompleted = false;
-                quiz.Answers = answers;
-                quiz.TotalScore = answers.Sum(a => a.score);
-                _context.Quizzes.Update(quiz);
-                await _context.SaveChangesAsync();
-                return new SaveQuizResponse()
-                {
-                    Message = "Success",
-                    QuizId = quiz.Id
-                };
-            }
+                Message = "Success",
+                QuizId = quiz.Id
+            };
         }
-        catch (Exception e)
+        else
         {
-            Console.WriteLine(e);
-            throw;
+            var quiz = _context.Quizzes
+                .Include(i => i.Answers)
+                .OrderByDescending(o => o.Id)
+                .FirstOrDefault(a => a.Id == request.QuizId);
+            if (quiz == null)
+                throw new ValidationException("Quiz not found.");
+            quiz.IsCompleted = false;
+            _context.Answers.RemoveRange(quiz.Answers);
+            quiz.Answers = answers;
+            await _context.SaveChangesAsync();
+            return new SaveQuizResponse()
+            {
+                Message = "Success",
+                QuizId = quiz.Id
+            };
         }
     }
 
     public async Task<SaveQuizResponse> SubmitQuiz(SaveQuizRequest request)
     {
-        try
+        var questionIds = request.Questions.Select(s => s.QuestionId).ToList();
+        var choices = _context.Questions
+            .Include(i => i.Choices)
+            .Where(w => questionIds.Contains(w.Id))
+            .SelectMany(a => a.Choices).ToList();
+        var answers = request.Questions
+            .Select(s => new Answer
+            {
+                ChoiceId = s.SelectedChoiceId!.Value,
+                QuestionId = s.QuestionId,
+                score = choices.FirstOrDefault(f => f.Id == s.SelectedChoiceId.Value)?.point ?? 0,
+                MaxScore = choices.Where(w => w.QuestionId == s.QuestionId).Max(ss => ss.point)
+            }).ToList();
+        if (request.QuizId == 0)
         {
-            var choiceIds = request.Questions
-                .SelectMany(a => a.Choices
-                    .Select(c => c.ChoiceId)
-                ).ToList();
-            var choices = _context.Choices.Where(a => choiceIds.Contains(a.Id)).ToList();
-            var answers = request.Questions
-                .SelectMany(a => a.Choices.Where(b => b.IsSelected)
-                    .Select(c =>
-                        new Answer
-                        {
-                            ChoiceId = c.ChoiceId,
-                            QuestionId = a.QuestionId,
-                            score = choices.FirstOrDefault(f => f.Id == c.ChoiceId)?.point ?? 0,
-                            MaxScore = choices.Where(w => w.QuestionId == a.QuestionId).Max(s => s.point)
-                        })
-                ).ToList();
-            if (request.QuizId == 0)
+            var quiz = new Quiz
             {
-                var quiz = new Quiz
-                {
-                    UserId = request.UserId,
-                    IsCompleted = true,
-                    Answers = answers,
-                    GroupId = request.GroupId,
-                    TotalScore = answers.Sum(a => a.score)
-                };
-                _context.Quizzes.Add(quiz);
-                await _context.SaveChangesAsync();
-                return new SaveQuizResponse()
-                {
-                    Message = "Success",
-                    QuizId = quiz.Id
-                };
-            }
-            else
+                UserId = request.UserId,
+                IsCompleted = true,
+                Answers = answers,
+                GroupId = request.GroupId,
+                TotalScore = answers.Sum(a => a.score)
+            };
+            _context.Quizzes.Add(quiz);
+            await _context.SaveChangesAsync();
+            return new SaveQuizResponse()
             {
-                var quiz = _context.Quizzes.FirstOrDefault(a => a.Id == request.QuizId);
-                if (quiz == null)
-                    throw new Exception("Quiz not found.");
-                quiz.IsCompleted = true;
-                quiz.Answers = answers;
-                quiz.TotalScore = answers.Sum(a => a.score);
-                _context.Quizzes.Update(quiz);
-                await _context.SaveChangesAsync();
-                return new SaveQuizResponse()
-                {
-                    Message = "Success",
-                    QuizId = quiz.Id
-                };
-            }
+                Message = "Success",
+                QuizId = quiz.Id
+            };
         }
-        catch (Exception e)
+        else
         {
-            Console.WriteLine(e);
-            throw;
+            var quiz = _context.Quizzes
+                .Include(i => i.Answers)
+                .FirstOrDefault(a => a.Id == request.QuizId);
+            if (quiz == null)
+                throw new ValidationException("Quiz not found.");
+            quiz.IsCompleted = true;
+            _context.Answers.RemoveRange(quiz.Answers);
+            quiz.Answers = answers;
+            quiz.TotalScore = answers.Sum(a => a.score);
+            await _context.SaveChangesAsync();
+            return new SaveQuizResponse()
+            {
+                Message = "Success",
+                QuizId = quiz.Id
+            };
         }
     }
 
-    public async Task<QuizResultResponse> GetQuizResult(int quizId)
+    public async Task<QuizResultResponse> GetQuizResult(int userId)
     {
-        try
+        var quiz = await _context.Quizzes
+            .Include(i => i.Answers)
+            .FirstOrDefaultAsync(a => a.UserId == userId);
+        var user = await _context.Users
+            .Include(i => i.Group)
+            .FirstOrDefaultAsync(a => a.Id == quiz!.UserId);
+        // get rank of user in group
+        var rankNo = _context.Quizzes
+            .Where(a => a.GroupId == user!.GroupId)
+            .OrderByDescending(o => o.TotalScore)
+            .ToList()
+            .FindIndex(a => a.Id == quiz!.Id) + 1;
+        return new QuizResultResponse
         {
-            var quiz = await _context.Quizzes
-                .Include(i => i.Answers)
-                .FirstOrDefaultAsync(a => a.Id == quizId);
-            var user = await _context.Users
-                .Include(i => i.Group)
-                .FirstOrDefaultAsync(a => a.Id == quiz!.UserId);
-            // get rank of user in group
-            var rankNo = _context.Quizzes
-                .Where(a => a.GroupId == user!.GroupId)
-                .OrderByDescending(o => o.TotalScore)
-                .ToList()
-                .FindIndex(a => a.Id == quizId) + 1;
-            return new QuizResultResponse
-            {
-                UserName = user!.Name,
-                GroupName = user.Group!.Name,
-                Score = quiz.TotalScore,
-                MaxScore = quiz.Answers.Sum(s => s.MaxScore),
-                RankNo = rankNo
-            };
-        }
-        catch (Exception e)
-        {
-            throw new Exception(e.Message);
-        }
+            UserName = user!.Name,
+            GroupName = user.Group!.Name,
+            Score = quiz!.TotalScore,
+            MaxScore = quiz.Answers.Sum(s => s.MaxScore),
+            RankNo = rankNo
+        };
     }
 }

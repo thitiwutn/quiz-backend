@@ -12,23 +12,16 @@ public class GroupService
     {
         _context = context;
     }
-    
+
     public async Task<ICollection<GroupModel>> GetGroups()
     {
-        try
-        {
-            var groups = await _context.Groups
-                .Select(a => new GroupModel
-                {
-                    Id = a.Id,
-                    Name = a.Name
-                })
-                .ToListAsync();
-            return groups;
-        }
-        catch (Exception e)
-        {
-            throw new Exception(e.Message);
-        }
+        var groups = await _context.Groups
+            .Select(a => new GroupModel
+            {
+                Id = a.Id,
+                Name = a.Name
+            })
+            .ToListAsync();
+        return groups;
     }
 }

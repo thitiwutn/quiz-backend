@@ -5,5 +5,6 @@ namespace quiz_api.Services.Models.Response;
 public class QuizResponse
 {
     public int QuizId { get; set; }
+    public bool IsComplete { get; set; }
     public ICollection<QuestionModel> Questions { get; set; }
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using quiz_api.Services;
 using quiz_api.Services.Models;
@@ -18,9 +19,28 @@ public class GroupController : Controller
     }
     
     [HttpGet("")]
-    public async Task<ActionResult<GroupModel>> GetUser(string userName)
+    public ActionResult<ApiResponse<ICollection<GroupModel>>> GetGroup()
     {
-        var groups = await _groupService.GetGroups();
-        return Ok(groups);
+        var response = new ApiResponse<ICollection<GroupModel>>();
+        try
+        {
+            var data = _groupService.GetGroups();
+            response.Data = data.Result;
+        }
+        catch (Exception ex) when (ex is ValidationException)
+        {
+            // Handle both ValidationException
+            response.Success = false;
+            response.ErrorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            // Log other unexpected exceptions
+            _logger.LogError(ex.Message);
+            response.Success = false;
+            response.ErrorMessage = "An unexpected error occurred.";
+        }
+
+        return Ok(response);
     }
 }

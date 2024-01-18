@@ -1,5 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using quiz_api.Services;
+using quiz_api.Services.Models;
 using quiz_api.Services.Models.Request;
 using quiz_api.Services.Models.Response;
 
@@ -20,33 +22,109 @@ public class QuizController : Controller
 
     // get quiz by username
     [HttpGet("")]
-    public async Task<ActionResult<QuizResponse>> GetQuiz(string userName)
+    public async Task<ActionResult<ApiResponse<QuizResponse>>> GetQuiz(int userId)
     {
-        var quizResponse = await _quizService.GetQuiz(userName);
-        return Ok(quizResponse);
+        var response = new ApiResponse<QuizResponse>();
+        try
+        {
+            var data = await _quizService.GetQuiz(userId);
+            response.Data = data;
+        }
+        catch (Exception ex) when (ex is ValidationException or AggregateException)
+        {
+            // Handle both ValidationException and AggregateException here
+            response.Success = false;
+            response.ErrorMessage = ex.InnerException!.Message;
+        }
+        catch (Exception ex)
+        {
+            // Log other unexpected exceptions
+            _logger.LogError(ex.Message);
+            response.Success = false;
+            response.ErrorMessage = "An unexpected error occurred.";
+        }
+
+        return Ok(response);
     }
 
     // post for save draft
     [HttpPost("Save")]
-    public async Task<ActionResult<QuizResultResponse>> SaveDraft(SaveQuizRequest model)
+    public async Task<ActionResult<ApiResponse<SaveQuizResponse>>> SaveDraft(SaveQuizRequest model)
     {
-        var data = await _quizService.SaveQuiz(model);
-        return Ok(data);
+        var response = new ApiResponse<SaveQuizResponse>();
+        try
+        {
+            var data = await _quizService.SaveQuiz(model);
+            response.Data = data;
+        }
+        catch (Exception ex) when (ex is ValidationException or AggregateException)
+        {
+            // Handle both ValidationException and AggregateException here
+            response.Success = false;
+            response.ErrorMessage = ex.InnerException!.Message;
+        }
+        catch (Exception ex)
+        {
+            // Log other unexpected exceptions
+            _logger.LogError(ex.Message);
+            response.Success = false;
+            response.ErrorMessage = "An unexpected error occurred.";
+        }
+
+        return Ok(response);
     }
 
     // post for submit
     [HttpPost("Submit")]
-    public async Task<ActionResult<QuizResultResponse>> Submit(SaveQuizRequest model)
+    public async Task<ActionResult<ApiResponse<SaveQuizResponse>>> Submit(SaveQuizRequest model)
     {
-        var data = await _quizService.SubmitQuiz(model);
-        return Ok(data);
+        var response = new ApiResponse<SaveQuizResponse>();
+        try
+        {
+            var data = await _quizService.SubmitQuiz(model);
+            response.Data = data;
+        }
+        catch (Exception ex) when (ex is ValidationException or AggregateException)
+        {
+            // Handle both ValidationException and AggregateException here
+            response.Success = false;
+            response.ErrorMessage = ex.InnerException!.Message;
+        }
+        catch (Exception ex)
+        {
+            // Log other unexpected exceptions
+            _logger.LogError(ex.Message);
+            response.Success = false;
+            response.ErrorMessage = "An unexpected error occurred.";
+        }
+
+        return Ok(response);
     }
 
     // get for get result
     [HttpGet("Result")]
-    public async Task<ActionResult<QuizResultResponse>> GetResult(int quizId)
+    public async Task<ActionResult<ApiResponse<QuizResultResponse>>> GetResult(int userId)
     {
-        var data = await _quizService.GetQuizResult(quizId);
-        return Ok(data);
+        var response = new ApiResponse<QuizResultResponse>();
+        try
+        {
+            var data = await _quizService.GetQuizResult(userId);
+            response.Data = data;
+        }
+        catch (Exception ex) when (ex is ValidationException)
+        {
+            // Handle both ValidationException
+            response.Success = false;
+            response.ErrorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            // Log other unexpected exceptions
+            _logger.LogError(ex.Message);
+            response.Success = false;
+            response.ErrorMessage = "An unexpected error occurred.";
+        }
+
+        return Ok(response);
     }
 }

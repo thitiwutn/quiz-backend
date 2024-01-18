@@ -5,6 +5,10 @@ namespace quiz_api.Entities.Models;
 
 public class Quiz : Tracking
 {
+    public Quiz()
+    {
+        Answers = new HashSet<Answer>();
+    }
     public int Id { get; set; }
     public int GroupId { get; set; }
     public int UserId { get; set; }
