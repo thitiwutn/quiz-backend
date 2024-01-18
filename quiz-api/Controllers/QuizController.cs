@@ -6,10 +6,7 @@ using quiz_api.Services.Models.Request;
 using quiz_api.Services.Models.Response;
 
 namespace quiz_api.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class QuizController : Controller
+public class QuizController : BaseController
 {
     private QuizService _quizService;
     private readonly ILogger<QuizController> _logger;

@@ -4,10 +4,7 @@ using quiz_api.Services;
 using quiz_api.Services.Models;
 
 namespace quiz_api.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class GroupController : Controller
+public class GroupController : BaseController
 {
     private GroupService _groupService;
     private readonly ILogger<GroupController> _logger;

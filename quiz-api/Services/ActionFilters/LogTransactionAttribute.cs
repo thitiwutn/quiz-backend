@@ -9,6 +9,13 @@ public class LogTransactionAttribute : ActionFilterAttribute
 {
     IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
 
+    private readonly ILogger _logger;
+
+    public LogTransactionAttribute(ILoggerFactory loggerFactory)
+    {
+        _logger = loggerFactory.CreateLogger("LoggingRequest");
+    }
+
     public override void OnActionExecuting(ActionExecutingContext context)
     {
         var request = context.HttpContext.Request;
@@ -17,13 +24,11 @@ public class LogTransactionAttribute : ActionFilterAttribute
                 address.AddressFamily == AddressFamily.InterNetwork));
         var requestLog =
             Environment.NewLine +
-            "------------------------------------------------------------------------------------------------------------------------" +
-            Environment.NewLine +
-            "Request: " + DateTime.Now.ToString("R") + Environment.NewLine +
-            request.Method + ": " + request.Path + Environment.NewLine +
-            "Params: " + JsonSerializer.Serialize(context.ActionArguments.Values.First()) + Environment.NewLine +
-            "IP Address: " + IPAddress + Environment.NewLine +
-            "User Agent: " + context.HttpContext.Request.Headers.UserAgent;
-        Console.WriteLine(requestLog);
+            "    Request: " + DateTime.Now.ToString("R") + Environment.NewLine +
+            "    " + request.Method + ": " + request.Path + Environment.NewLine +
+            "    Params: " + JsonSerializer.Serialize(context.ActionArguments?.Values.FirstOrDefault()) + Environment.NewLine +
+            "    IP Address: " + IPAddress + Environment.NewLine +
+            "    User Agent: " + context.HttpContext.Request.Headers.UserAgent + Environment.NewLine + "    ";
+        _logger.LogInformation(requestLog);
     }
 }

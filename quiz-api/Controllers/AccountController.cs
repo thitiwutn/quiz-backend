@@ -8,10 +8,7 @@ using quiz_api.Services.Models.Response;
 
 namespace quiz_api.Controllers;
 
-[ApiController]
-[LogTransaction]
-[Route("api/[controller]")]
-public class AccountController : Controller
+public class AccountController : BaseController
 {
     private AccountService _accountService;
     private readonly ILogger<AccountController> _logger;

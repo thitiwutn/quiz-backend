@@ -1,10 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using quiz_api.Entities;
 using quiz_api.Services;
+using quiz_api.Services.ActionFilters;
+
+using NLog;
+using NLog.Web;
 
 var  MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Early init of NLog to allow startup and exception logging, before host is built
+var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+logger.Debug("init main");
 
 builder.Services.AddCors(options =>
 {
@@ -16,6 +24,11 @@ builder.Services.AddCors(options =>
                 .AllowAnyMethod();
         });
 });
+
+// NLog: Setup NLog for Dependency injection
+builder.Logging.ClearProviders();
+builder.Host.UseNLog();
+
 
 
 builder.Services.AddControllers();
@@ -37,6 +50,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<QuizService>();
 builder.Services.AddScoped<GroupService>();
+
+	
+builder.Services.AddScoped<LogTransactionAttribute>();
 
 var app = builder.Build();
 
